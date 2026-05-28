@@ -177,25 +177,31 @@ function CheckinModal({ open, signedDays, onClose, onSign }) {
 function TaskModal({ open, onClose, onComplete }) {
   if (!open) return null;
   const tasks = [
-    { title: '浏览精选商品', desc: '浏览商品详情，有机会获得寻找机会' },
-    { title: '观看活动广告', desc: '完成短任务后领取一次抽奖机会' },
-    { title: '分享活动页面', desc: '邀请好友参与，一起找不同' }
+    { icon: '👥', title: '分享给好友助力', progress: '0/10', desc: '邀请好友参与互动' },
+    { icon: '⏱️', title: '浏览主会场30s', progress: '0/30', desc: '完成任务得奖励' },
+    { icon: '🛒', title: '购买20元以上商品', progress: '0/5', desc: '集合会场主推大于20元' },
+    { icon: '🔍', title: '搜索心仪好物30s', progress: '0/5', desc: '搜索一件商品，逛货架拿奖励' },
+    { icon: '🪐', title: '逛一逛包裹墙30s', progress: '0/3', desc: '双11包裹墙惊喜福利' }
   ];
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="task-modal" onClick={event => event.stopPropagation()}>
-        <h2>得机会任务</h2>
-        <p>完成任务后有20%概率获得寻找机会</p>
+    <div className="task-backdrop" onClick={onClose}>
+      <button className="task-close" onClick={onClose} type="button">×</button>
+      <div className="task-panel" onClick={event => event.stopPropagation()}>
+        <div className="task-mascot">🧩🎁</div>
+        <div className="task-title">做任务得机会</div>
         <div className="task-list">
           {tasks.map(task => (
             <div className="task-item" key={task.title}>
-              <div><strong>{task.title}</strong><span>{task.desc}</span></div>
-              <button onClick={onComplete} type="button">去完成</button>
+              <div className="task-icon">{task.icon}</div>
+              <div className="task-copy">
+                <strong>{task.title}<em>({task.progress})</em></strong>
+                <span>{task.desc}</span>
+              </div>
+              <div className="task-action">
+                <button onClick={onComplete} type="button">去完成</button>
+              </div>
             </div>
           ))}
-        </div>
-        <div className="modal-actions">
-          <button onClick={onClose} type="button">关闭</button>
         </div>
       </div>
     </div>

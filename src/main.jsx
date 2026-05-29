@@ -5,12 +5,12 @@ import './styles.css';
 
 const TOTAL = 6;
 const eras = ['80年代', '90年代', '千禧年'];
-const imageBase = import.meta.env.BASE_URL;
-const titleArtImage = `${imageBase}images/find-difference-title-art-v2-transparent.png`;
+const CDN_BASE = 'https://cdn.jsdelivr.net/gh/szb19940914-glitch/yingxiaogame@main/images/';
+const titleArtImage = `${CDN_BASE}find-difference-title-art-v2-transparent.webp`;
 const eraImages = {
-  '80年代': `${imageBase}images/find-difference-80s-anachronism-wide-v1.png`,
-  '90年代': `${imageBase}images/find-difference-90s-anachronism-wide-v1.png`,
-  '千禧年': `${imageBase}images/find-difference-00s-anachronism-wide-v1.png`
+  '80年代': `${CDN_BASE}find-difference-80s-anachronism-wide-v1.webp`,
+  '90年代': `${CDN_BASE}find-difference-90s-anachronism-wide-v1.webp`,
+  '千禧年': `${CDN_BASE}find-difference-00s-anachronism-wide-v1.webp`
 };
 const spots = [
   { id: 'radio', left: '18%', top: '43%', label: '不同点1' },

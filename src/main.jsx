@@ -5,10 +5,11 @@ import './styles.css';
 
 const TOTAL = 6;
 const eras = ['80年代', '90年代', '千禧年'];
+const imageBase = import.meta.env.BASE_URL;
 const eraImages = {
-  '80年代': '/images/find-difference-80s-anachronism-wide-v1.png',
-  '90年代': '/images/find-difference-90s-anachronism-wide-v1.png',
-  '千禧年': '/images/find-difference-00s-anachronism-wide-v1.png'
+  '80年代': `${imageBase}images/find-difference-80s-anachronism-wide-v1.png`,
+  '90年代': `${imageBase}images/find-difference-90s-anachronism-wide-v1.png`,
+  '千禧年': `${imageBase}images/find-difference-00s-anachronism-wide-v1.png`
 };
 const spots = [
   { id: 'radio', left: '18%', top: '43%', label: '不同点1' },

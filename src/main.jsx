@@ -69,19 +69,21 @@ function GameCard({ found, chances, activeEra, unlockedEraCount, onEraChange, on
       </div>
       <div className="scene-wrap" onClick={() => onSpotClick(null)}>
         <img className="scene" src={eraImages[activeEra]} alt={`${activeEra}生活场景找不同玩法图`} />
-        {spots.map(spot => (
-          <button
-            key={`${activeEra}-${spot.id}`}
-            className={`hotspot ${found.has(spot.id) ? 'found' : ''}`}
-            style={{ left: spot.left, top: spot.top }}
-            onClick={event => {
-              event.stopPropagation();
-              onSpotClick(spot.id);
-            }}
-            aria-label={spot.label}
-            type="button"
-          />
-        ))}
+        <div className="hotspot-layer">
+          {spots.map(spot => (
+            <button
+              key={`${activeEra}-${spot.id}`}
+              className={`hotspot ${found.has(spot.id) ? 'found' : ''}`}
+              style={{ left: spot.left, top: spot.top }}
+              onClick={event => {
+                event.stopPropagation();
+                onSpotClick(spot.id);
+              }}
+              aria-label={spot.label}
+              type="button"
+            />
+          ))}
+        </div>
         <div className="progress-ribbon">找到<span>{found.size}</span>/{TOTAL}个不同点，最高赢SVIP会员</div>
       </div>
       <div className="chance-row">

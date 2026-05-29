@@ -6,6 +6,7 @@ import './styles.css';
 const TOTAL = 6;
 const eras = ['80年代', '90年代', '千禧年'];
 const imageBase = import.meta.env.BASE_URL;
+const titleArtImage = `${imageBase}images/find-difference-title-art-v2-transparent.png`;
 const eraImages = {
   '80年代': `${imageBase}images/find-difference-80s-anachronism-wide-v1.png`,
   '90年代': `${imageBase}images/find-difference-90s-anachronism-wide-v1.png`,
@@ -102,8 +103,16 @@ function GameCard({ found, chances, activeEra, unlockedEraCount, onEraChange, on
 
 function Mall({ onChanceRoll }) {
   const [activeFilter, setActiveFilter] = useState('全部');
+  const [chanceStates, setChanceStates] = useState({});
   const currentFilter = filters.find(filter => filter.label === activeFilter) || filters[0];
   const filteredGoods = goods.filter(item => item.price >= currentFilter.min && item.price <= currentFilter.max);
+
+  function handleChanceClick(title) {
+    if (chanceStates[title]) return;
+    const won = onChanceRoll();
+    setChanceStates(value => ({ ...value, [title]: won ? 'won' : 'missed' }));
+  }
+
   return (
     <section className="mall">
       <div className="search-row">
@@ -119,19 +128,32 @@ function Mall({ onChanceRoll }) {
       </div>
       <div className="goods-scroll">
         <div className="goods">
-          {filteredGoods.map(({ icon, title, price, buyer, hasChance }) => (
-            <article className="goods-card" key={title}>
-              <button className="goods-main" type="button">
-                <div className="pic">{icon}</div>
-                <div>
-                  <div className="goods-title">{title}</div>
-                  <div className="price">¥{price}</div>
-                  <div className="buyer">{buyer}</div>
-                </div>
-              </button>
-              {hasChance && <button className="chance-pill" onClick={onChanceRoll} type="button">领取机会</button>}
-            </article>
-          ))}
+          {filteredGoods.map(({ icon, title, price, buyer, hasChance }) => {
+            const chanceState = chanceStates[title];
+            const chanceText = chanceState === 'won' ? '已抽中 +1机会' : chanceState === 'missed' ? '未抽中' : '领取机会';
+            return (
+              <article className="goods-card" key={title}>
+                <button className="goods-main" type="button">
+                  <div className="pic">{icon}</div>
+                  <div>
+                    <div className="goods-title">{title}</div>
+                    <div className="price">¥{price}</div>
+                    <div className="buyer">{buyer}</div>
+                  </div>
+                </button>
+                {hasChance && (
+                  <button
+                    className={`chance-pill ${chanceState ? `chance-pill-${chanceState}` : ''}`}
+                    onClick={() => handleChanceClick(title)}
+                    disabled={Boolean(chanceState)}
+                    type="button"
+                  >
+                    {chanceText}
+                  </button>
+                )}
+              </article>
+            );
+          })}
         </div>
         {!filteredGoods.length && <div className="empty-goods">当前价格区间暂无商品</div>}
       </div>
@@ -277,11 +299,13 @@ function App() {
   }
 
   function handleChanceRoll() {
-    if (Math.random() < 0.2) {
-      addChance('恭喜获得寻找机会 +1');
+    const won = Math.random() < 0.2;
+    if (won) {
+      addChance('恭喜抽中，寻找机会 +1');
     } else {
-      showToast('很遗憾，本次未获得奖励');
+      showToast('未抽中，本次未获得奖励');
     }
+    return won;
   }
 
   function resetGame() {
@@ -302,7 +326,9 @@ function App() {
   return (
     <main className="phone">
       <TopBar />
-      <section className="title"><h1>欢乐找不同<br />赢网盘豪礼</h1></section>
+      <section className="title">
+        <img className="title-art" src={titleArtImage} alt="欢乐找不同 赢网盘豪礼" />
+      </section>
       <GameCard
         found={found}
         chances={chances}

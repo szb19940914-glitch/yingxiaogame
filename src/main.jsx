@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ArrowLeft, CalendarCheck, Gift, Grid3X3, Lock, Search } from 'lucide-react';
 import './styles.css';
@@ -42,6 +42,70 @@ const filters = [
   { label: '10~100元', min: 10, max: 100 },
   { label: '100~500元', min: 100, max: 500 }
 ];
+
+const pangleMallConfig = {
+  appId: 'YOUR_PANGLE_APP_ID',
+  codeId: 'YOUR_EC_MALL_FEED_CODE_ID',
+  rewardDuration: 10,
+  rewardCoins: 1
+};
+
+function normalizePangleGoods(items = []) {
+  const sourceItems = Array.isArray(items) ? items : [];
+  return sourceItems.map((item, index) => ({
+    id: item.id || item.adId || item.productId || `pangle-${index}`,
+    icon: item.icon || item.imageUrl || item.image || '🛍️',
+    title: item.title || item.productName || item.desc || '穿山甲商城精选好物',
+    price: Number(item.price || item.salePrice || item.finalPrice || 0),
+    buyer: item.buyer || item.salesText || item.source || '穿山甲商城推荐',
+    hasChance: item.hasChance !== false,
+    isAd: item.isAd !== false,
+    clickUrl: item.clickUrl || item.landingUrl || item.deepLink || '',
+    raw: item
+  }));
+}
+
+const pangleMallBridge = {
+  async load(config) {
+    const bridge = window.PangleMallBridge || window.TTAdMallBridge || window.webkit?.messageHandlers?.PangleMallBridge;
+    if (bridge?.loadMallFeed) {
+      const result = await bridge.loadMallFeed(config);
+      return normalizePangleGoods(result?.items || result?.goods || result || []);
+    }
+    if (bridge?.postMessage) {
+      bridge.postMessage({ type: 'loadMallFeed', payload: config });
+      return [];
+    }
+    return normalizePangleGoods(goods.map((item, index) => ({
+      ...item,
+      id: `mock-${index}`,
+      isAd: index % 3 !== 1,
+      source: index % 3 !== 1 ? '穿山甲商城测试广告' : '商城自然流量兜底'
+    })));
+  },
+  report(eventName, item) {
+    const bridge = window.PangleMallBridge || window.TTAdMallBridge || window.webkit?.messageHandlers?.PangleMallBridge;
+    const payload = { eventName, adId: item.id, codeId: pangleMallConfig.codeId, item: item.raw || item };
+    if (bridge?.reportMallEvent) {
+      bridge.reportMallEvent(payload);
+      return;
+    }
+    if (bridge?.postMessage) {
+      bridge.postMessage({ type: 'reportMallEvent', payload });
+    }
+  },
+  open(item) {
+    this.report('click', item);
+    const bridge = window.PangleMallBridge || window.TTAdMallBridge || window.webkit?.messageHandlers?.PangleMallBridge;
+    if (bridge?.openMallItem) {
+      bridge.openMallItem(item.raw || item);
+      return;
+    }
+    if (item.clickUrl) {
+      window.open(item.clickUrl, '_blank', 'noopener,noreferrer');
+    }
+  }
+};
 
 function Toast({ message }) {
   return <div className={`toast ${message ? 'show' : ''}`}>{message}</div>;
@@ -101,16 +165,51 @@ function GameCard({ found, chances, activeEra, unlockedEraCount, onEraChange, on
   );
 }
 
-function Mall({ onChanceRoll }) {
+function Mall({ onChanceRoll, onToast }) {
   const [activeFilter, setActiveFilter] = useState('全部');
   const [chanceStates, setChanceStates] = useState({});
+  const [mallItems, setMallItems] = useState(() => normalizePangleGoods(goods));
+  const [mallStatus, setMallStatus] = useState('loading');
+  const exposedItems = useRef(new Set());
   const currentFilter = filters.find(filter => filter.label === activeFilter) || filters[0];
-  const filteredGoods = goods.filter(item => item.price >= currentFilter.min && item.price <= currentFilter.max);
+  const filteredGoods = mallItems.filter(item => item.price >= currentFilter.min && item.price <= currentFilter.max);
 
-  function handleChanceClick(title) {
-    if (chanceStates[title]) return;
+  useEffect(() => {
+    let mounted = true;
+    pangleMallBridge.load(pangleMallConfig)
+      .then(items => {
+        if (!mounted) return;
+        setMallItems(items.length ? items : normalizePangleGoods(goods));
+        setMallStatus(window.PangleMallBridge || window.TTAdMallBridge ? 'live' : 'mock');
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setMallItems(normalizePangleGoods(goods));
+        setMallStatus('fallback');
+        onToast('商城广告加载失败，已展示兜底内容');
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [onToast]);
+
+  function reportExposure(item) {
+    if (exposedItems.current.has(item.id)) return;
+    exposedItems.current.add(item.id);
+    pangleMallBridge.report('show', item);
+  }
+
+  function handleChanceClick(id) {
+    if (chanceStates[id]) return;
     const won = onChanceRoll();
-    setChanceStates(value => ({ ...value, [title]: won ? 'won' : 'missed' }));
+    setChanceStates(value => ({ ...value, [id]: won ? 'won' : 'missed' }));
+  }
+
+  function handleItemClick(item) {
+    pangleMallBridge.open(item);
+    if (!item.clickUrl && !(window.PangleMallBridge || window.TTAdMallBridge)) {
+      onToast('测试环境暂无真实落地页');
+    }
   }
 
   return (
@@ -126,15 +225,23 @@ function Mall({ onChanceRoll }) {
           </button>
         ))}
       </div>
+      <div className={`mall-status mall-status-${mallStatus}`}>
+        {mallStatus === 'live' ? '穿山甲商城内容已接入' : mallStatus === 'loading' ? '正在加载商城内容...' : mallStatus === 'fallback' ? '商城兜底内容' : '测试环境 · 模拟穿山甲商城'}
+      </div>
       <div className="goods-scroll">
         <div className="goods">
-          {filteredGoods.map(({ icon, title, price, buyer, hasChance }) => {
-            const chanceState = chanceStates[title];
+          {filteredGoods.map(item => {
+            const { id, icon, title, price, buyer, hasChance, isAd } = item;
+            const chanceState = chanceStates[id];
             const chanceText = chanceState === 'won' ? '已抽中 +1机会' : chanceState === 'missed' ? '未抽中' : '领取机会';
+            reportExposure(item);
             return (
-              <article className="goods-card" key={title}>
-                <button className="goods-main" type="button">
-                  <div className="pic">{icon}</div>
+              <article className="goods-card" key={id}>
+                <button className="goods-main" onClick={() => handleItemClick(item)} type="button">
+                  <div className="pic">
+                    {typeof icon === 'string' && icon.startsWith('http') ? <img src={icon} alt="" /> : icon}
+                    {isAd && <span className="ad-tag">广告</span>}
+                  </div>
                   <div>
                     <div className="goods-title">{title}</div>
                     <div className="price">¥{price}</div>
@@ -144,7 +251,7 @@ function Mall({ onChanceRoll }) {
                 {hasChance && (
                   <button
                     className={`chance-pill ${chanceState ? `chance-pill-${chanceState}` : ''}`}
-                    onClick={() => handleChanceClick(title)}
+                    onClick={() => handleChanceClick(id)}
                     disabled={Boolean(chanceState)}
                     type="button"
                   >
@@ -247,11 +354,11 @@ function App() {
   const completedEraCount = eras.reduce((count, era) => (foundByEra[era] || []).length === TOTAL ? count + 1 : count, 0);
   const unlockedEraCount = Math.min(completedEraCount + 1, eras.length);
 
-  function showToast(text) {
+  const showToast = useCallback((text) => {
     setToast(text);
     window.clearTimeout(showToast.timer);
     showToast.timer = window.setTimeout(() => setToast(''), 1600);
-  }
+  }, []);
 
   function addChance(text) {
     setChances(value => value + 1);
@@ -340,7 +447,7 @@ function App() {
         onOpenTasks={() => setTaskOpen(true)}
       />
       <div className="hint-strip">下滑寻找可获得更多「机会」</div>
-      <Mall onChanceRoll={handleChanceRoll} />
+      <Mall onChanceRoll={handleChanceRoll} onToast={showToast} />
       <Toast message={toast} />
       <RewardModal open={success} activeEra={activeEra} onAgain={resetGame} onNext={goNextEra} />
       <CheckinModal open={checkinOpen} signedDays={signedDays} onClose={() => setCheckinOpen(false)} onSign={handleCheckin} />
